@@ -1,0 +1,6 @@
+@EndUserText.label: 'Carrier - Access Control'
+@MappingRole: true
+define role ZLRN_I_CARRIER {
+    grant select on ZLRN_I_CARRIER
+              where (AirlineID) = aspect pfcg_auth(ZLRN_CARR, ZLRN_CARR , ACTVT = '03'); 
+}
