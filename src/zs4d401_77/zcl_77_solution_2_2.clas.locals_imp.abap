@@ -22,10 +22,7 @@ CLASS lcl_passenger_flight DEFINITION .
         airport_to_id   TYPE /dmo/airport_to_id,
         departure_time  TYPE /dmo/flight_departure_time,
         arrival_time    TYPE /dmo/flight_departure_time,
-        duration        TYPE i,
       END OF st_connection_details.
-
-
 
     TYPES
       tt_flights TYPE STANDARD TABLE OF REF TO lcl_passenger_flight WITH DEFAULT KEY.
@@ -60,8 +57,9 @@ CLASS lcl_passenger_flight DEFINITION .
     DATA seats_free TYPE i.
 
     DATA price TYPE /dmo/flight_price.
-    CONSTANTS currency TYPE /dmo/currency_code VALUE 'EUR'.
-    TYPES: BEGIN OF st_fligths_buffer,
+    CLASS-DATA currency TYPE /dmo/currency_code VALUE 'EUR'.
+
+    TYPES: BEGIN OF st_flights_buffer,
              carrier_id     TYPE zlrn_passflight-carrier_id,
              connection_id  TYPE zlrn_passflight-connection_id,
              flight_date    TYPE zlrn_passflight-flight_date,
@@ -70,9 +68,8 @@ CLASS lcl_passenger_flight DEFINITION .
              seats_occupied TYPE zlrn_passflight-seats_occupied,
              price          TYPE zlrn_passflight-price,
              currency_code  TYPE zlrn_passflight-currency_code,
-           END OF st_fligths_buffer.
-    CLASS-DATA: flights_buffer TYPE TABLE OF st_fligths_buffer.
-
+           END OF st_flights_buffer.
+    CLASS-DATA: flights_buffer TYPE TABLE OF st_flights_buffer.
 
     DATA connection_details TYPE st_connection_details.
 
@@ -93,11 +90,13 @@ ENDCLASS.
 CLASS lcl_passenger_flight IMPLEMENTATION.
 
   METHOD class_constructor.
+
     SELECT
-      FROM Zlrn_connection
-      FIELDS carrier_id, connection_id,
-             airport_from_id, airport_to_id, departure_time, arrival_time
+      FROM zlrn_connection
+    FIELDS carrier_id, connection_id,
+           airport_from_id, airport_to_id, departure_time, arrival_time
       INTO TABLE @connections_buffer.
+
   ENDMETHOD.
 
   METHOD get_flights_by_carrier.
@@ -110,41 +109,40 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
 
     SELECT
       FROM zlrn_passflight
-      FIELDS carrier_id, connection_id, flight_date,
-             plane_type_id, seats_max, seats_occupied,
-             price, currency_code
-      WHERE carrier_id = @i_carrier_id
+    FIELDS carrier_id, connection_id, flight_date,
+           plane_type_id, seats_max, seats_occupied,
+           price, currency_code
+     WHERE carrier_id = @i_carrier_id
       INTO TABLE @flights_buffer.
 
-    LOOP AT flights_buffer INTO DATA(flights).
-      APPEND NEW lcl_passenger_flight( i_carrier_id    = flights-carrier_id
-                                       i_connection_id = flights-connection_id
-                                       i_flight_date   = flights-flight_date )
+
+    LOOP AT flights_buffer INTO DATA(flight).
+      APPEND NEW lcl_passenger_flight( i_carrier_id    = flight-carrier_id
+                                       i_connection_id = flight-connection_id
+                                       i_flight_date   = flight-flight_date )
               TO r_result.
     ENDLOOP.
 
   ENDMETHOD.
 
-
   METHOD constructor.
 
     TRY.
-        DATA(flight_raw) = flights_buffer[ carrier_id    = i_carrier_id
-                                           connection_id = i_connection_id
-                                           flight_date   = i_flight_date ].
+        DATA(flight_raw) = flights_buffer[ carrier_id = i_carrier_id
+                                          connection_id = i_connection_id
+                                          flight_date = i_flight_date ].
+
       CATCH cx_sy_itab_line_not_found.
         SELECT SINGLE
           FROM zlrn_passflight
-          FIELDS plane_type_id, seats_max, seats_occupied,
-                 price, currency_code
-          WHERE carrier_id    = @i_carrier_id
-            AND connection_id = @i_connection_id
-            AND flight_date   = @i_flight_date
-          INTO CORRESPONDING FIELDS OF @flight_raw.
+        FIELDS plane_type_id, seats_max, seats_occupied, price, currency_code
+         WHERE carrier_id    = @i_carrier_id
+           AND connection_id = @i_connection_id
+           AND flight_date   = @i_flight_date
+          INTO CORRESPONDING FIELDS OF @flight_raw .
     ENDTRY.
 
-*    IF sy-subrc = 0.
-    IF flight_raw IS NOT INITIAL.
+    IF sy-subrc = 0.
       me->carrier_id    = i_carrier_id.
       me->connection_id = i_connection_id.
       me->flight_date   = i_flight_date.
@@ -158,33 +156,29 @@ CLASS lcl_passenger_flight IMPLEMENTATION.
       TRY.
           cl_exchange_rates=>convert_to_local_currency(
             EXPORTING
-              date              = me->flight_date
+              date              = i_flight_date
               foreign_amount    = flight_raw-price
               foreign_currency  = flight_raw-currency_code
-              local_currency    = me->currency
+              local_currency    = currency
             IMPORTING
               local_amount      = me->price
           ).
         CATCH cx_exchange_rates.
-          price = flight_raw-price.
+          CLEAR price.
       ENDTRY.
 
 * Set connection details
 *      SELECT SINGLE
-*        FROM /dmo/connection
+*        FROM zlrn_connection
 *      FIELDS airport_from_id, airport_to_id, departure_time, arrival_time
 *       WHERE carrier_id    = @carrier_id
 *         AND connection_id = @connection_id
 *        INTO @connection_details .
 
-      connection_details = CORRESPONDING #(
-                             connections_buffer[
-                               carrier_id    = i_carrier_id
-                               connection_id = i_connection_id ]
-                                          ).
-
-      connection_details-duration = connection_details-arrival_time
-                                  - connection_details-departure_time.
+      connection_details = CORRESPONDING #( connections_buffer[
+                                                 carrier_id    = i_carrier_id
+                                                 connection_id = i_connection_id ]
+                                           ).
 
     ENDIF.
   ENDMETHOD.
@@ -222,14 +216,16 @@ CLASS lcl_cargo_flight DEFINITION .
              airport_to_id   TYPE /dmo/airport_to_id,
              departure_time  TYPE /dmo/flight_departure_time,
              arrival_time    TYPE /dmo/flight_departure_time,
-             duration        TYPE i,
            END OF st_connection_details.
 
     TYPES
        tt_flights TYPE STANDARD TABLE OF REF TO lcl_cargo_flight WITH DEFAULT KEY.
 
-    DATA carrier_id    TYPE /dmo/connection_id    READ-ONLY.
-    DATA connection_id TYPE /dmo/carrier_id       READ-ONLY.
+*    DATA carrier_id    TYPE /dmo/connection_id    READ-ONLY.
+*    DATA connection_id TYPE /dmo/carrier_id       READ-ONLY.
+    DATA carrier_id    TYPE /dmo/carrier_id        READ-ONLY.
+    DATA connection_id TYPE /dmo/connection_id     READ-ONLY.
+
     DATA flight_date   TYPE /dmo/flight_date      READ-ONLY.
 
     METHODS constructor
@@ -332,7 +328,9 @@ CLASS lcl_cargo_flight IMPLEMENTATION.
     ENDTRY.
 
     carrier_id    = i_carrier_id.
+*    carrier_id = EXACT #( i_carrier_id ). " runtime error (convt_no_number)
     connection_id = i_connection_id.
+*  connection_id = EXACT #( i_connection_id ). "syntax error
     flight_date   = i_flight_date.
 
     planetype = flight_raw-plane_type_id.
@@ -341,9 +339,6 @@ CLASS lcl_cargo_flight IMPLEMENTATION.
     load_unit = flight_raw-load_unit.
 
     connection_details = CORRESPONDING #( flight_raw ).
-
-    connection_details-duration = me->connection_details-arrival_time
-                                    - me->connection_details-departure_time.
 
   ENDMETHOD.
 
@@ -374,7 +369,8 @@ CLASS lcl_carrier DEFINITION .
 
   PUBLIC SECTION.
 
-    TYPES t_output TYPE c LENGTH 25.
+*    TYPES t_output TYPE c LENGTH 40.
+    TYPES t_output TYPE string.
     TYPES tt_output TYPE STANDARD TABLE OF t_output
                     WITH NON-UNIQUE DEFAULT KEY.
 
@@ -410,7 +406,7 @@ CLASS lcl_carrier DEFINITION .
   PROTECTED SECTION.
   PRIVATE SECTION.
 
-    DATA name          TYPE /dmo/carrier_name .
+    DATA name          TYPE string.
     DATA currency_code TYPE /dmo/currency_code ##NEEDED.
 
     DATA passenger_flights TYPE lcl_passenger_flight=>tt_flights.
@@ -429,7 +425,7 @@ CLASS lcl_carrier IMPLEMENTATION.
     me->carrier_id = i_carrier_id.
 
     SELECT SINGLE
-      FROM /dmo/carrier
+      FROM zlrn_carrier
     FIELDS name, currency_code
      WHERE carrier_id = @i_carrier_id
      INTO ( @me->name, @me->currency_code ).
@@ -440,11 +436,11 @@ CLASS lcl_carrier IMPLEMENTATION.
 
     name = carrier_id && ` ` && name.
 
-    me->passenger_flights =
+    passenger_flights =
         lcl_passenger_flight=>get_flights_by_carrier(
               i_carrier_id    = i_carrier_id ).
 
-    me->cargo_flights =
+    cargo_flights =
         lcl_cargo_flight=>get_flights_by_carrier(
               i_carrier_id    = i_carrier_id ).
 
@@ -452,7 +448,7 @@ CLASS lcl_carrier IMPLEMENTATION.
 
   METHOD get_output.
 
-    APPEND |Carrier { me->name } | TO r_result.
+    APPEND |Carrier Name:       { me->name } | TO r_result.
     APPEND |Passenger Flights:  { lines( passenger_flights ) } | TO r_result.
     APPEND |Average free seats: { get_average_free_seats(  ) } | TO r_result.
     APPEND |Cargo Flights:      { lines( cargo_flights     ) } | TO r_result.
