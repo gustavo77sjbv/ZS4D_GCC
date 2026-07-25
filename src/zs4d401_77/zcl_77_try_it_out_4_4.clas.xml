@@ -3,9 +3,9 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOCLASS>
-    <CLSNAME>ZCL_77_TRY_IT_OUT_4_1B</CLSNAME>
+    <CLSNAME>ZCL_77_TRY_IT_OUT_4_4</CLSNAME>
     <LANGU>E</LANGU>
-    <DESCRIPT>Try It Out: Inner Join and Outer Joins</DESCRIPT>
+    <DESCRIPT>Try It Out: Date processing</DESCRIPT>
     <STATE>1</STATE>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>
