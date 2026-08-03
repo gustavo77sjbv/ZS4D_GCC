@@ -1,0 +1,11 @@
+@EndUserText.label: 'Department Query (Access Control)'
+@MappingRole: true
+define role ZGU77_C_DEPARTMENTQUERY {
+    grant
+        select
+            on
+                ZGU77_C_DEPARTMENTQUERY
+                    where
+                        inheriting conditions from entity ZGU77_R_DEPARTMENT;
+                        
+}
