@@ -24,7 +24,7 @@ CLASS zcl_gu77_try_it_out_5_3_ IMPLEMENTATION.
     DATA insert_tab TYPE TABLE OF /dmo/flight.
 
 
-    DELETE FROM z401_gu77_flights.
+*    DELETE FROM z401_GU77_flights.
 
 
     SELECT FROM /dmo/flight FIELDS * ORDER BY carrier_Id, connection_id INTO TABLE @flights .
@@ -81,7 +81,7 @@ CLASS zcl_gu77_try_it_out_5_3_ IMPLEMENTATION.
 
 
 
-    INSERT z401_gu77_flights FROM TABLE @insert_tab.
+*    INSERT z401_gu77_flights FROM TABLE @insert_tab.
     out->write( |Generated { sy-dbcnt } rows in table z401_gu77_flights| ).
 
 
